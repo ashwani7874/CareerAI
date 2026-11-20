@@ -1,0 +1,20 @@
+
+node_modules/
+.env
+uploads/
+
+# Node
+backend/node_modules/
+backend/.env
+
+# Python
+ai-engine/venv/
+ai-engine/__pycache__/
+*.pyc
+
+# Uploaded files
+backend/uploads/
+
+# IDE
+.vscode/
+.idea/
