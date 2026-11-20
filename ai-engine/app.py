@@ -1,15 +1,24 @@
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from typing import Optional
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import re
 
+from advanced_analyzer import advanced_resume_analysis
+
+
 app = FastAPI(
     title="CareerAI AI Engine",
-    description="Resume analysis, job matching and feedback",
-    version="2.0.0"
+    description="Resume analysis, job matching and advanced AI feedback",
+    version="3.0.0"
 )
+
+
+# --------------------------------------------------
+# SKILL DATABASE
+# --------------------------------------------------
 
 SKILLS = [
     "Java", "Python", "C++", "JavaScript", "TypeScript",
@@ -23,6 +32,7 @@ SKILLS = [
     "Algorithms", "OOP", "FastAPI", "Flask"
 ]
 
+
 SECTIONS = {
     "contact": ["email", "phone", "linkedin", "github"],
     "summary": ["summary", "objective", "professional profile"],
@@ -34,6 +44,10 @@ SECTIONS = {
 }
 
 
+# --------------------------------------------------
+# REQUEST MODELS
+# --------------------------------------------------
+
 class MatchRequest(BaseModel):
     resume_text: str
     job_description: str
@@ -42,6 +56,15 @@ class MatchRequest(BaseModel):
 class FeedbackRequest(BaseModel):
     resume_text: str
 
+
+class AdvancedFeedbackRequest(BaseModel):
+    resume_text: str
+    job_description: Optional[str] = None
+
+
+# --------------------------------------------------
+# SKILL EXTRACTION
+# --------------------------------------------------
 
 def extract_skills(text):
     text_lower = text.lower()
@@ -55,6 +78,10 @@ def extract_skills(text):
 
     return found
 
+
+# --------------------------------------------------
+# TEXT SIMILARITY
+# --------------------------------------------------
 
 def calculate_similarity(resume_text, job_description):
     try:
@@ -78,16 +105,23 @@ def calculate_similarity(resume_text, job_description):
         return 0.0
 
 
+# --------------------------------------------------
+# HOME / HEALTH CHECK
+# --------------------------------------------------
+
 @app.get("/")
 def home():
     return {
         "success": True,
         "message": "CareerAI AI Engine is running",
-        "version": "2.0.0"
+        "version": "3.0.0"
     }
 
 
+# --------------------------------------------------
 # JOB DESCRIPTION MATCHING
+# --------------------------------------------------
+
 @app.post("/analyze")
 def analyze_resume(request: MatchRequest):
 
@@ -183,7 +217,10 @@ def analyze_resume(request: MatchRequest):
     }
 
 
-# RESUME FEEDBACK
+# --------------------------------------------------
+# EXISTING RESUME FEEDBACK
+# --------------------------------------------------
+
 @app.post("/feedback")
 def resume_feedback(request: FeedbackRequest):
 
@@ -198,32 +235,38 @@ def resume_feedback(request: FeedbackRequest):
     lower_text = text.lower()
     word_count = len(text.split())
 
-    # Detect resume sections
     detected_sections = []
     missing_sections = []
 
     for section, keywords in SECTIONS.items():
-        found = any(keyword in lower_text for keyword in keywords)
+        found = any(
+            keyword in lower_text
+            for keyword in keywords
+        )
 
         if found:
             detected_sections.append(section)
         else:
             missing_sections.append(section)
 
-    # Extract technical skills
     skills = extract_skills(text)
 
-    # Analyze bullet points
+    # Detect bullet points
     bullet_count = len(
-        re.findall(r"(?m)^\s*(?:[-*•]|\d+[.)])\s+", text)
+        re.findall(
+            r"(?m)^\s*(?:[-*•]|\d+[.)])\s+",
+            text
+        )
     )
 
     # Detect measurable achievements
     has_numbers = bool(
-        re.search(r"\b\d+(?:\.\d+)?%?\b", text)
+        re.search(
+            r"\b\d+(?:\.\d+)?\s*%?\b",
+            text
+        )
     )
 
-    # Detect action verbs
     action_verbs = [
         "developed", "built", "created", "implemented",
         "designed", "managed", "improved", "optimized",
@@ -231,7 +274,12 @@ def resume_feedback(request: FeedbackRequest):
     ]
 
     action_verb_count = sum(
-        len(re.findall(r"\b" + verb + r"\b", lower_text))
+        len(
+            re.findall(
+                r"\b" + re.escape(verb) + r"\b",
+                lower_text
+            )
+        )
         for verb in action_verbs
     )
 
@@ -239,7 +287,6 @@ def resume_feedback(request: FeedbackRequest):
     weaknesses = []
     suggestions = []
 
-    # Section feedback
     if "education" in detected_sections:
         strengths.append("Education information is present.")
     else:
@@ -265,16 +312,22 @@ def resume_feedback(request: FeedbackRequest):
         )
 
     if "experience" in detected_sections:
-        strengths.append("Experience or internship information is present.")
+        strengths.append(
+            "Experience or internship information is present."
+        )
     else:
         suggestions.append(
             "If applicable, include internships, work experience or practical training."
         )
 
     if "summary" in detected_sections:
-        strengths.append("Professional summary or objective is present.")
+        strengths.append(
+            "Professional summary or objective is present."
+        )
     else:
-        weaknesses.append("Professional summary was not detected.")
+        weaknesses.append(
+            "Professional summary was not detected."
+        )
         suggestions.append(
             "Add a short professional summary tailored to your target role."
         )
@@ -284,33 +337,44 @@ def resume_feedback(request: FeedbackRequest):
             "Include relevant certifications if you have completed any."
         )
 
-    # Content quality
     if word_count < 150:
         weaknesses.append("Resume content appears very short.")
         suggestions.append(
             "Add relevant details about skills, projects, education and experience."
         )
     elif word_count >= 300:
-        strengths.append("Resume contains a reasonable amount of content.")
+        strengths.append(
+            "Resume contains a reasonable amount of content."
+        )
 
     if bullet_count >= 3:
-        strengths.append("Resume uses bullet points to present information.")
+        strengths.append(
+            "Resume uses bullet points to present information."
+        )
     else:
-        weaknesses.append("Few structured bullet points were detected.")
+        weaknesses.append(
+            "Few structured bullet points were detected."
+        )
         suggestions.append(
             "Use concise bullet points instead of long paragraphs."
         )
 
     if has_numbers:
-        strengths.append("Measurable numbers or figures were detected.")
+        strengths.append(
+            "Measurable numbers or figures were detected."
+        )
     else:
-        weaknesses.append("Few measurable achievements were detected.")
+        weaknesses.append(
+            "Few measurable achievements were detected."
+        )
         suggestions.append(
             "Add numbers, percentages or measurable project results where accurate."
         )
 
     if action_verb_count >= 2:
-        strengths.append("Action-oriented language was detected.")
+        strengths.append(
+            "Action-oriented language was detected."
+        )
     else:
         suggestions.append(
             "Start project and experience descriptions with strong action verbs such as Developed, Built or Implemented."
@@ -321,12 +385,14 @@ def resume_feedback(request: FeedbackRequest):
             "Detected technical skills: " + ", ".join(skills)
         )
     else:
-        weaknesses.append("No recognized technical skills were detected.")
+        weaknesses.append(
+            "No recognized technical skills were detected."
+        )
         suggestions.append(
             "Include relevant technical skills using their accurate names."
         )
 
-    # Calculate a rule-based feedback score
+    # Rule-based feedback score
     score = 0
 
     score += len(detected_sections) / len(SECTIONS) * 50
@@ -365,3 +431,45 @@ def resume_feedback(request: FeedbackRequest):
         "weaknesses": weaknesses,
         "suggestions": suggestions
     }
+
+
+# --------------------------------------------------
+# NEW ADVANCED RESUME ANALYSIS
+# --------------------------------------------------
+
+@app.post("/advanced-feedback")
+def advanced_feedback(request: AdvancedFeedbackRequest):
+
+    resume_text = request.resume_text.strip()
+
+    if len(resume_text) < 50:
+        raise HTTPException(
+            status_code=400,
+            detail="Resume text is too short to analyze"
+        )
+
+    job_description = (
+        request.job_description.strip()
+        if request.job_description
+        else None
+    )
+
+    try:
+        result = advanced_resume_analysis(
+            resume_text,
+            job_description
+        )
+
+        return result
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error)
+        )
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail="Advanced analysis failed: " + str(error)
+        )
