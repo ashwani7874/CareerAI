@@ -13,17 +13,28 @@ const {
     matchResumeToJob
 } = require("../controllers/resumeController");
 
+const {
+    getResumeFeedback
+} = require("../controllers/aiController");
+
 router.use(protect);
 
+// Upload resume
 router.post("/upload", upload.single("resume"), uploadResume);
 
+// Get all resumes
 router.get("/", getAllResumes);
 
-// Match route before the generic ID route for clarity
+// Job description matching
 router.post("/:id/match", matchResumeToJob);
 
+// Resume feedback
+router.post("/:id/feedback", getResumeFeedback);
+
+// Get one resume
 router.get("/:id", getResumeById);
 
+// Delete resume
 router.delete("/:id", deleteResume);
 
 module.exports = router;

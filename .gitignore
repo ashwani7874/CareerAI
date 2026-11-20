@@ -1,0 +1,9 @@
+node_modules/
+backend/.env
+__pycache__/
+*.py[cod]
+ai-engine/venv/
+backend/uploads/
+frontend/dist/
+.vscode/
+.idea/
